@@ -1,0 +1,49 @@
+# ==========================================
+# Alfraganus AI System - Git Ignore Rules
+# ==========================================
+
+# 1. API Keys & Sensitive Credentials (CRITICAL)
+config/api_keys.json
+config/settings.json
+*.key
+*.pem
+.env
+.env.*
+
+# 2. Python Cache & Virtual Environments
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+python_env/
+
+# 3. Temporary files & Media captures
+temp/
+*.png
+*.jpg
+*.jpeg
+*.wav
+*.mp3
+*.webm
+*.log
+
+# 4. OS / IDE Artifacts
+.DS_Store
+Thumbs.db
+Desktop.ini
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# 5. Build & Distribution
+dist/
+build/
+*.egg-info/
+*.spec

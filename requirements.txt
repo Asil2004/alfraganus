@@ -1,0 +1,32 @@
+# ==========================================
+# Alfraganus AI System - Requirements
+# ==========================================
+
+# Core Gemini Live Multimodal & AI Engine
+google-genai>=1.0.0
+pydantic>=2.0.0
+
+# Real-time Audio Processing & Streaming
+sounddevice>=0.4.6
+numpy>=1.24.0
+
+# Computer Vision & Hand Gesture Recognition
+opencv-python>=4.8.0
+mediapipe>=0.10.0
+pillow>=10.0.0
+
+# System Automation & Telemetry (Windows & Multiplatform)
+psutil>=5.9.0
+pyautogui>=0.9.54
+pywin32>=306; sys_platform == "win32"
+keyboard>=0.13.5
+
+# Network, Telegram Bridge & HTTP
+requests>=2.31.0
+websockets>=12.0
+
+# Cloud Server, REST API & Web Dashboard
+fastapi>=0.110.0
+uvicorn>=0.28.0
+python-multipart>=0.0.9
+jinja2>=3.1.3
