@@ -742,6 +742,11 @@ class AlfraganusEngine:
 
 def start_app():
     try:
+        # 1. First-launch Setup Wizard (API Key & Voice Persona)
+        from setup_wizard import ensure_setup
+        if not ensure_setup():
+            return
+
         ui = AlfraganusUI()
         engine = AlfraganusEngine(ui)
 
