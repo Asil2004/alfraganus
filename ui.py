@@ -193,19 +193,6 @@ class AlfraganusUI:
         )
         self.btn_recon.pack(side="left", padx=5, pady=8)
 
-        self.btn_web = tk.Button(
-            bottom_bar,
-            text="🌐 Web Dashboard (Online)",
-            font=("Segoe UI", 9, "bold"),
-            bg="#1c1438",
-            fg="#c084fc",
-            relief="flat",
-            padx=12,
-            pady=6,
-            command=self._open_web_dashboard
-        )
-        self.btn_web.pack(side="left", padx=5, pady=8)
-
         btn_exit = tk.Button(
             bottom_bar,
             text="? Chiqish",
@@ -339,11 +326,6 @@ class AlfraganusUI:
         self.log("Qayta ulanish so'ralmoqda...", "SYSTEM")
         if self.on_reconnect:
             self.on_reconnect()
-
-    def _open_web_dashboard(self):
-        import webbrowser
-        self.log("Brauzerda Web Dashboard ochilmoqda...", "WEB")
-        webbrowser.open("http://localhost:8000")
 
     def _start_loops(self):
         self.update_telemetry()

@@ -1,9 +1,8 @@
-# 🌌 ALFRAGANUS (Ahmad al-Farg'oniy) — Autonomous Multimodal AI Core & Cloud Ecosystem
+# 🌌 ALFRAGANUS (Ahmad al-Farg'oniy) — Autonomous Multimodal AI Core
 
 <p align="center">
   <img src="https://img.shields.io/badge/AI-Google%20Gemini%20Live%20Multimodal-00f0ff?style=for-the-badge" alt="Gemini Live">
-  <img src="https://img.shields.io/badge/Backend-FastAPI%20%7C%20WebSocket%20Gateway-a855f7?style=for-the-badge" alt="FastAPI">
-  <img src="https://img.shields.io/badge/Platform-Windows%20%7C%20Linux%20%7C%20Android%20%7C%20Docker-10b981?style=for-the-badge" alt="Platforms">
+  <img src="https://img.shields.io/badge/Platform-Windows%20%7C%20Android%20ADB-10b981?style=for-the-badge" alt="Platforms">
   <img src="https://img.shields.io/badge/Language-100%25%20Pure%20Uzbek-orange?style=for-the-badge" alt="Uzbek">
 </p>
 
@@ -11,12 +10,12 @@
 
 ## 🇺🇿 O'zbekcha Tavsif
 
-**Alfraganus (Al-Farg'oniy)** — bu kompyuter, smartfon va aqlli qurilmalarni to'liq avtonom boshqaruvchi, Google Gemini Live ko'p modalli sun'iy intellektiga asoslangan zamonaviy shaxsiy assistent va bulutli ekotizimdir.
+**Alfraganus (Al-Farg'oniy)** — bu kompyuter, smartfon va aqlli qurilmalarni to'liq avtonom boshqaruvchi, Google Gemini Live ko'p modalli sun'iy intellektiga asoslangan zamonaviy shaxsiy assistentdir.
 
 ### 🌟 Asosiy Imkoniyatlar:
 
 1. **🎙️ Sof Gemini Live Audio & Ovoz Profillari (Voice Personas):**
-   - Hech qanday tashqi robotik sintezatorsiz, to'g'ridan-to'g'ri Gemini Live ovoz oqimi.
+   - Hech qanday tashqi robotik sintezatorsiz, to'g'ridan-to'g'ri Gemini Live sof audio oqimi.
    - Yosh va jinsga qarab 5 ta tabiiy profil:
      - 🧔 **Katta Erkak / Jarvis (`Charon`):** Salobatli, vazmin, professional erkak ovozi.
      - 👧 **Yosh Qiz (`Kore`):** Samimiy, xotirjam va muloyim yosh qiz ovozi.
@@ -40,11 +39,8 @@
    - Kompyuter ekranidagi xatoliklar, rasmlar va dasturlarni ko'rib tahlil qilish.
    - Ekrandagi har qanday tugma yoki belgini ko'rib, kursor bilan borib bosish (`screen_click`).
 
-5. **🌐 Cloud Server & Web Dashboard (Client-Server):**
-   - FastAPI REST API va real-vaqtli WebSocket Gateway.
-   - Har qanday brauzerdan (PC, iPhone, Android planshet) kiriladigan Cyberpunk uslubidagi boshqaruv paneli.
-   - 24/7 Telegram Bot Bridge (`@al_pc_bot`).
-   - Docker va Docker Compose orqali 1 ta buyruqda serverga o'rnatish.
+5. **✈️ Telegram Masofaviy Nazorati:**
+   - Telegram bot (`@al_pc_bot`) orqali kompyuterni masofadan boshqarish va skrinshot olish.
 
 ---
 
@@ -52,7 +48,7 @@
 
 ### 1. Repozitoriyni klonlash:
 ```bash
-git clone https://github.com/USERNAME/alfraganus.git
+git clone https://github.com/Asil2004/alfraganus.git
 cd alfraganus
 ```
 
@@ -76,27 +72,15 @@ pip install -r requirements.txt
 }
 ```
 
-### 4. Ishga tushirish variantlari:
-
-- **Desktop rejimida (Jonli Ovoz + UI + Qo'l Gesturlari):**
-  ```bash
-  python main.py
-  ```
-
-- **Cloud Server & Web Dashboard rejimida:**
-  ```bash
-  python server/server_app.py
-  # Brauzerda oching: http://localhost:8000
-  ```
-
-- **Docker orqali serverda ko'tarish:**
-  ```bash
-  docker compose up -d
-  ```
+### 4. Dasturni ishga tushirish:
+```bash
+python main.py
+```
+*Yoki `run_alfraganus.bat` faylini ishga tushiring.*
 
 ---
 
-## 🏛️ Tizim Arxitekturasi
+## 🏛️ Tizim Fayl Tuzilishi
 
 ```
 alfraganus/
@@ -116,24 +100,16 @@ alfraganus/
 │   ├── voice_persona.py      # Yosh va jinsga qarab ovoz profillari
 │   ├── weather_report.py     # Ob-havo ma'lumotlari
 │   └── youtube_video.py      # YouTube video va musiqa qidiruvi
-├── config/                   # Sozlamalar va API konfiguratsiyalari
-├── core/                     # Tizim prompti va Gemini modellari
+├── config/                   # Sozlamalar va konfiguratsiyalar
+├── core/                     # Tizim prompti va Gemini sozlamalari
 ├── gestures/                 # MediaPipe 2-qo'l kuzatuvi va harakatlar
-├── server/                   # Cloud FastAPI Server, Web Dashboard, Client Daemon
 ├── ui.py                     # Cyberpunk uslubidagi Desktop GUI
 ├── main.py                   # Asosiy Gemini Live dvigateli
 ├── test_suite.py             # 10 ta modul bo'yicha diagnostika
+├── updater.py                # Ishga tushirishdan oldingi tekshiruvchi
 ├── requirements.txt          # Kerakli Python kutubxonalari
-├── Dockerfile                # Server konteyneri
-└── docker-compose.yml        # Docker Compose sozlamalari
+└── run_alfraganus.bat        # Windows ishga tushirish skripti
 ```
-
----
-
-## 🛡️ Xavfsizlik
-
-- Barcha API kalitlari va shaxsiy tokenlar `.gitignore` orqali to'liq himoyalangan.
-- Foydalanuvchi buyruq bermaganida, tizim o'zboshimchalik bilan sichqoncha yoki tizimga kirmaydi.
 
 ---
 

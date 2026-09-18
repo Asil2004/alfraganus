@@ -24,9 +24,3 @@ keyboard>=0.13.5
 # Network, Telegram Bridge & HTTP
 requests>=2.31.0
 websockets>=12.0
-
-# Cloud Server, REST API & Web Dashboard
-fastapi>=0.110.0
-uvicorn>=0.28.0
-python-multipart>=0.0.9
-jinja2>=3.1.3
