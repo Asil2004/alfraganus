@@ -764,6 +764,22 @@ def start_app():
         if ui:
             ui.log("Telegram Bot (@al_pc_bot) masofaviy boshqaruvi ulandi.", "TELEGRAM")
 
+        # Start Background Cloud Web Gateway (Online Dashboard)
+        def _run_web_server():
+            try:
+                import uvicorn
+                from server.server_app import app as web_app
+                config = uvicorn.Config(web_app, host="0.0.0.0", port=8000, log_level="warning")
+                server = uvicorn.Server(config)
+                server.run()
+            except Exception as ex:
+                print("Cloud web server error:", ex)
+
+        web_thread = threading.Thread(target=_run_web_server, daemon=True)
+        web_thread.start()
+        if ui:
+            ui.log("Cloud Web Gateway online holatda: http://localhost:8000", "CLOUD")
+
         def _async_worker():
             while engine.is_running:
                 try:
