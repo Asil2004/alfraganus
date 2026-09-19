@@ -41,8 +41,15 @@ CONFIG_PATH = BASE_DIR / "config" / "api_keys.json"
 SETTINGS_PATH = BASE_DIR / "config" / "settings.json"
 PROMPT_PATH = BASE_DIR / "core" / "prompt.txt"
 
-LIVE_MODEL = "models/gemini-2.5-flash-native-audio-latest"
-FALLBACK_MODEL = "models/gemini-3.1-flash-live-preview"
+# Google AI Studio / Gemini Live Models Priority Pool (Avtomatik eng yaxshisiga almashadi)
+LIVE_MODELS_POOL = [
+    "models/gemini-2.5-flash-native-audio-latest",
+    "models/gemini-3.8-live",
+    "models/gemini-3.8-live-extended-thinking",
+    "models/gemini-3-flash-live",
+    "models/gemini-3.1-flash-live-preview",
+    "models/gemini-3.5-live-translate",
+]
 CHANNELS = 1
 SEND_SAMPLE_RATE = 16000
 RECEIVE_SAMPLE_RATE = 24000
@@ -162,6 +169,26 @@ TOOL_DECLARATIONS = [
             "type": "OBJECT",
             "properties": {
                 "caption": {"type": "STRING", "description": "Caption for the screenshot"}
+            }
+        }
+    },
+    {
+        "name": "send_telegram_bot_camera",
+        "description": "Captures a photo using the laptop webcam and sends it to the user's Telegram bot (@al_pc_bot).",
+        "parameters": {
+            "type": "OBJECT",
+            "properties": {
+                "caption": {"type": "STRING", "description": "Optional caption for camera photo"}
+            }
+        }
+    },
+    {
+        "name": "send_telegram_bot_live_combo",
+        "description": "Captures both PC screen and laptop camera in a combined Picture-in-Picture photo and sends it to the user's Telegram bot (@al_pc_bot).",
+        "parameters": {
+            "type": "OBJECT",
+            "properties": {
+                "caption": {"type": "STRING", "description": "Optional caption for live combo photo"}
             }
         }
     },
@@ -469,6 +496,12 @@ class AlfraganusEngine:
             elif name == "send_telegram_bot_screenshot":
                 from actions.telegram_bot_bridge import send_bot_screenshot
                 return send_bot_screenshot(args.get("caption", "Kompyuter ekrani"))
+            elif name == "send_telegram_bot_camera":
+                from actions.telegram_bot_bridge import send_bot_camera_photo
+                return send_bot_camera_photo(args.get("caption", "Noutbuk kamerasi surati"))
+            elif name == "send_telegram_bot_live_combo":
+                from actions.telegram_bot_bridge import send_bot_live_combo
+                return send_bot_live_combo(args.get("caption", "Kompyuter ekrani va kamerasi (Live Combo)"))
             elif name == "send_telegram_message":
                 from actions.telegram_controller import send_telegram_message
                 return send_telegram_message(recipient=args.get("recipient", ""), message=args.get("message", ""))
@@ -753,8 +786,9 @@ class AlfraganusEngine:
             http_options={"api_version": "v1beta"}
         )
 
-        active_model = LIVE_MODEL
+        model_idx = 0
         while self.is_running:
+            active_model = LIVE_MODELS_POOL[model_idx % len(LIVE_MODELS_POOL)]
             try:
                 if self.ui:
                     self.ui.log(f"Gemini Live ({active_model.split('/')[-1]}) serveriga ulanmoqda...", "SYSTEM")
@@ -772,7 +806,7 @@ class AlfraganusEngine:
                     self._turn_done_event = asyncio.Event()
 
                     if self.ui:
-                        self.ui.log(f"? Gemini Live ({active_model.split('/')[-1]}) bilan aloqa o'rnatildi! Cheksiz rejim tayyor.", "SUCCESS")
+                        self.ui.log(f"⚡ Gemini Live ({active_model.split('/')[-1]}) bilan aloqa o'rnatildi! Cheksiz rejim tayyor.", "SUCCESS")
 
                     tg.create_task(self._send_realtime())
                     tg.create_task(self._listen_audio())
@@ -785,11 +819,13 @@ class AlfraganusEngine:
                     self.ui.log(f"Yangi ovoz sozlamalari qo'llanildi. Gemini Live ulanmoqda...", "SYSTEM")
                 await asyncio.sleep(0.2)
             except Exception as e:
-                # Switch to fallback if connection fails
-                active_model = FALLBACK_MODEL if active_model == LIVE_MODEL else LIVE_MODEL
+                # Keyingi eng yaxshi / mavjud modelga avtomatik o'tish
+                prev_model = active_model.split('/')[-1]
+                model_idx += 1
+                next_model = LIVE_MODELS_POOL[model_idx % len(LIVE_MODELS_POOL)].split('/')[-1]
                 if self.ui:
-                    self.ui.log(f"Qayta ulanish ({e}). {active_model.split('/')[-1]} ga o'tilmoqda...", "RECONNECT")
-                await asyncio.sleep(2)
+                    self.ui.log(f"🔄 Model avtomatik almashtirilmoqda ({prev_model} -> {next_model}): {e}", "RECONNECT")
+                await asyncio.sleep(1.5)
 
 
 def start_app():
