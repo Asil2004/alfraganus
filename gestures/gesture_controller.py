@@ -66,6 +66,12 @@ class GestureController:
         if self.is_dragging:
             pyautogui.mouseUp()
             self.is_dragging = False
+        if self.cap:
+            try:
+                self.cap.release()
+            except Exception:
+                pass
+            self.cap = None
         return False
 
     def toggle(self):
@@ -75,16 +81,19 @@ class GestureController:
             return self.enable()
 
     def _open_camera(self):
-        cap = cv2.VideoCapture(self.camera_idx, cv2.CAP_DSHOW)
-        if not cap.isOpened():
-            cap = cv2.VideoCapture(self.camera_idx)
-        cap.set(cv2.CAP_PROP_FRAME_WIDTH, self.cam_w)
-        cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self.cam_h)
-        cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
-        cap.set(cv2.CAP_PROP_FPS, 30)
-        for _ in range(2):
-            cap.read()
-        return cap
+        try:
+            cap = cv2.VideoCapture(self.camera_idx, cv2.CAP_DSHOW)
+            if not cap.isOpened():
+                cap = cv2.VideoCapture(self.camera_idx)
+            cap.set(cv2.CAP_PROP_FRAME_WIDTH, self.cam_w)
+            cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self.cam_h)
+            cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+            cap.set(cv2.CAP_PROP_FPS, 30)
+            for _ in range(2):
+                cap.read()
+            return cap
+        except Exception:
+            return None
 
     def _run_loop(self):
         # 2 ta qo'lni parallel kuzatish (max_hands=2)
@@ -96,13 +105,21 @@ class GestureController:
 
         while self.is_running:
             if not self.is_enabled:
-                time.sleep(0.08)
+                if self.cap is not None:
+                    try:
+                        self.cap.release()
+                    except Exception:
+                        pass
+                    self.cap = None
+                time.sleep(0.1)
                 continue
 
-            if not self.cap or not self.cap.isOpened():
+            if self.cap is None or not self.cap.isOpened():
                 self.cap = self._open_camera()
-                time.sleep(0.2)
-                continue
+                if self.cap is None or not self.cap.isOpened():
+                    time.sleep(0.5)
+                    continue
+                time.sleep(0.1)
 
             success, img = self.cap.read()
             if not success or img is None:

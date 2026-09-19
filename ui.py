@@ -37,6 +37,9 @@ class AlfraganusUI:
         
         self.latest_cv_frame = None
         self.current_preview_tk = None
+        self.fs_window = None
+        self.fs_canvas = None
+        self.fs_preview_tk = None
 
         self.orb_angle = 0
         self.orb_scale = 1.0
@@ -113,15 +116,54 @@ class AlfraganusUI:
         self.last_net_time = time.time()
 
         # GESTURE CAMERA HUD BOX
-        lbl_cam = tk.Label(left_panel, text="QO'L HARAKATLARI (LIVE HUD)", font=("Segoe UI", 10, "bold"), fg=C_GOLD, bg=C_PANEL)
-        lbl_cam.pack(anchor="w", padx=12, pady=(18, 5))
+        cam_header = tk.Frame(left_panel, bg=C_PANEL)
+        cam_header.pack(fill="x", padx=12, pady=(14, 2))
 
-        self.lbl_gesture_state = tk.Label(left_panel, text="Holat: Faol (Ko'rsatkich barmoq)", font=("Segoe UI", 9), fg=C_MUTED, bg=C_PANEL)
-        self.lbl_gesture_state.pack(anchor="w", padx=15, pady=2)
+        lbl_cam = tk.Label(cam_header, text="QO'L HARAKATLARI (LIVE HUD)", font=("Segoe UI", 9, "bold"), fg=C_GOLD, bg=C_PANEL)
+        lbl_cam.pack(side="left")
 
-        self.cam_canvas = tk.Canvas(left_panel, width=270, height=200, bg="#02050b", highlightbackground=C_BORDER, highlightthickness=1)
-        self.cam_canvas.pack(padx=12, pady=8)
-        self.cam_canvas.create_text(135, 100, text="Kamera O'chiq\\n(Tugmani bosing yoki ovoz bering)", fill=C_MUTED, font=("Segoe UI", 9), justify="center")
+        btn_fs = tk.Button(
+            cam_header,
+            text="⛶ Kengaytirish",
+            font=("Segoe UI", 7, "bold"),
+            bg="#112a45",
+            fg=C_CYAN,
+            relief="flat",
+            padx=4,
+            pady=1,
+            command=self._toggle_fullscreen_camera
+        )
+        btn_fs.pack(side="right")
+
+        self.lbl_gesture_state = tk.Label(left_panel, text="Holat: Faol (Ko'rsatkich barmoq)", font=("Segoe UI", 8), fg=C_MUTED, bg=C_PANEL)
+        self.lbl_gesture_state.pack(anchor="w", padx=15, pady=(0, 2))
+
+        self.cam_canvas = tk.Canvas(left_panel, width=270, height=190, bg="#02050b", highlightbackground=C_BORDER, highlightthickness=1, cursor="hand2")
+        self.cam_canvas.pack(padx=12, pady=4)
+        self.cam_canvas.create_text(135, 95, text="Kamera O'chiq\n(Tugmani bosing yoki ovoz bering)\nBosilsa: Katta oyna", fill=C_MUTED, font=("Segoe UI", 8), justify="center")
+        self.cam_canvas.bind("<Button-1>", self._toggle_fullscreen_camera)
+
+        # GESTURE GUIDE / CHEATSHEET
+        guide_frame = tk.Frame(left_panel, bg="#060c18", highlightbackground=C_BORDER, highlightthickness=1)
+        guide_frame.pack(fill="x", padx=12, pady=(4, 8))
+
+        lbl_gtitle = tk.Label(guide_frame, text="📖 QO'L HARAKATLARI TUSHUNTIRISH", font=("Segoe UI", 8, "bold"), fg=C_CYAN, bg="#060c18")
+        lbl_gtitle.pack(anchor="w", padx=8, pady=(4, 2))
+
+        gestures_list = [
+            ("☝️ 1 Barmoq", "Kursor harakati"),
+            ("🤏 Pinch (Bosh+Ko'rsatkich)", "Chap chertish (Click)"),
+            ("✊ Musht (Fist)", "Oynani ushlash va surish (Drag)"),
+            ("✌️ 2 Barmoq", "O'ng chertish (Right Click)"),
+            ("📜 Ko'rsatkich + Kichik", "Skroll qilish (Scroll)"),
+            ("👐 2 Qo'l yoyish/yopish", "Kattalashtirish / Kichraytirish"),
+            ("✊✊ 2 Musht", "Ish stoli (Win+D)")
+        ]
+        for g_icon, g_desc in gestures_list:
+            row = tk.Frame(guide_frame, bg="#060c18")
+            row.pack(fill="x", padx=8, pady=1)
+            tk.Label(row, text=g_icon, font=("Segoe UI", 8, "bold"), fg=C_TEXT, bg="#060c18").pack(side="left")
+            tk.Label(row, text=f"— {g_desc}", font=("Segoe UI", 7), fg=C_MUTED, bg="#060c18").pack(side="left", padx=3)
 
         # CENTER PANEL (Neural Core Visualizer)
         center_panel = tk.Frame(main_container, bg=C_PANEL, highlightbackground=C_BORDER, highlightthickness=1)
@@ -282,6 +324,17 @@ class AlfraganusUI:
                 self.current_preview_tk = img_tk
                 self.cam_canvas.delete("all")
                 self.cam_canvas.create_image(135, 100, image=img_tk)
+
+                if self.fs_window is not None and self.fs_canvas is not None:
+                    fw = max(100, self.fs_canvas.winfo_width())
+                    fh = max(100, self.fs_canvas.winfo_height())
+                    fs_bgr = cv2.resize(self.latest_cv_frame, (fw, fh))
+                    fs_rgb = cv2.cvtColor(fs_bgr, cv2.COLOR_BGR2RGB)
+                    fs_pil = Image.fromarray(fs_rgb)
+                    fs_tk = ImageTk.PhotoImage(fs_pil)
+                    self.fs_preview_tk = fs_tk
+                    self.fs_canvas.delete("all")
+                    self.fs_canvas.create_image(fw // 2, fh // 2, image=fs_tk)
             except Exception:
                 pass
         if not self.root_destroyed:
@@ -289,6 +342,39 @@ class AlfraganusUI:
                 self.root.after(40, self._render_camera_loop)
             except Exception:
                 pass
+
+    def _toggle_fullscreen_camera(self, event=None):
+        if self.fs_window is not None:
+            self._close_fs_window()
+            return
+
+        self.fs_window = tk.Toplevel(self.root)
+        self.fs_window.title("ALFRAGANUS LIVE CAMERA HUD (KENGAYTIRILGAN)")
+        self.fs_window.geometry("850x640")
+        self.fs_window.configure(bg=C_BG)
+        self.fs_window.protocol("WM_DELETE_WINDOW", self._close_fs_window)
+
+        top_bar = tk.Frame(self.fs_window, bg=C_PANEL, height=45, highlightbackground=C_BORDER, highlightthickness=1)
+        top_bar.pack(fill="x", side="top", padx=10, pady=6)
+
+        lbl = tk.Label(top_bar, text="📹 QO'L HARAKATLARI VA KAMERA LIVE HUD (KATTA OYNA)", font=("Segoe UI", 10, "bold"), fg=C_CYAN, bg=C_PANEL)
+        lbl.pack(side="left", padx=12, pady=6)
+
+        btn_close = tk.Button(top_bar, text="✕ Yopish", font=("Segoe UI", 9, "bold"), bg="#3d141d", fg=C_RED, relief="flat", padx=10, pady=2, command=self._close_fs_window)
+        btn_close.pack(side="right", padx=10, pady=6)
+
+        self.fs_canvas = tk.Canvas(self.fs_window, bg="#02050b", highlightthickness=0)
+        self.fs_canvas.pack(fill="both", expand=True, padx=10, pady=(0, 10))
+
+    def _close_fs_window(self):
+        if self.fs_window is not None:
+            try:
+                self.fs_window.destroy()
+            except Exception:
+                pass
+            self.fs_window = None
+            self.fs_canvas = None
+            self.fs_preview_tk = None
 
     def _toggle_mic(self):
         self.mic_muted = not self.mic_muted
