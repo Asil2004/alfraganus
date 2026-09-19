@@ -44,11 +44,10 @@ PROMPT_PATH = BASE_DIR / "core" / "prompt.txt"
 # Google AI Studio / Gemini Live Models Priority Pool (Avtomatik eng yaxshisiga almashadi)
 LIVE_MODELS_POOL = [
     "models/gemini-2.5-flash-native-audio-latest",
-    "models/gemini-3.8-live",
-    "models/gemini-3.8-live-extended-thinking",
-    "models/gemini-3-flash-live",
-    "models/gemini-3.1-flash-live-preview",
-    "models/gemini-3.5-live-translate",
+    "models/gemini-2.5-flash",
+    "models/gemini-flash-latest",
+    "models/gemini-2.5-flash-lite",
+    "models/gemini-3-flash-preview",
 ]
 CHANNELS = 1
 SEND_SAMPLE_RATE = 16000
@@ -630,13 +629,14 @@ class AlfraganusEngine:
             stream.close()
 
     async def _stream_vision(self):
-        """Streams composite video frame (Screen + Camera PIP) to Gemini Live at ~1 FPS"""
+        """Streams lightweight composite video frame to Gemini Live only when needed at ~2.5s intervals"""
         import cv2
         from PIL import ImageGrab
 
         while self.is_running:
             try:
-                await asyncio.sleep(1.0)
+                # 2.5 soniyalik eng optimal interval (audio va AI javob tezligini sekinlashtirmaslik uchun)
+                await asyncio.sleep(2.5)
                 if not self.session or not self.is_running:
                     continue
 
@@ -651,10 +651,10 @@ class AlfraganusEngine:
                         screen_pil = None
 
                 if screen_pil is None:
-                    await asyncio.sleep(0.5)
                     continue
 
-                screen_pil.thumbnail((1024, 576))
+                # Kadr o'lchamini tezkor 640x360 formatga siqish (juda kam tarmoq va token sarfi)
+                screen_pil.thumbnail((640, 360))
                 screen_np = np.array(screen_pil)
                 screen_bgr = cv2.cvtColor(screen_np, cv2.COLOR_RGB2BGR)
 
@@ -662,18 +662,18 @@ class AlfraganusEngine:
                 if self.gesture and self.gesture.is_enabled and self.ui and self.ui.latest_cv_frame is not None:
                     try:
                         cam_frame = self.ui.latest_cv_frame
-                        pip_w, pip_h = 240, 160
+                        pip_w, pip_h = 160, 110
                         cam_resized = cv2.resize(cam_frame, (pip_w, pip_h))
                         sh, sw, _ = screen_bgr.shape
-                        x_offset = sw - pip_w - 15
-                        y_offset = sh - pip_h - 15
+                        x_offset = sw - pip_w - 10
+                        y_offset = sh - pip_h - 10
                         if x_offset > 0 and y_offset > 0:
-                            cv2.rectangle(screen_bgr, (x_offset - 2, y_offset - 2), (x_offset + pip_w + 2, y_offset + pip_h + 2), (255, 240, 0), 2)
+                            cv2.rectangle(screen_bgr, (x_offset - 1, y_offset - 1), (x_offset + pip_w + 1, y_offset + pip_h + 1), (255, 240, 0), 1)
                             screen_bgr[y_offset:y_offset+pip_h, x_offset:x_offset+pip_w] = cam_resized
                     except Exception:
                         pass
 
-                ret, enc_jpeg = cv2.imencode('.jpg', screen_bgr, [int(cv2.IMWRITE_JPEG_QUALITY), 75])
+                ret, enc_jpeg = cv2.imencode('.jpg', screen_bgr, [int(cv2.IMWRITE_JPEG_QUALITY), 55])
                 if ret and self.session:
                     jpeg_bytes = enc_jpeg.tobytes()
                     try:
@@ -854,8 +854,8 @@ def start_app():
         ui.on_gesture_toggle = on_gesture_toggle
         engine.gesture.set_frame_callback(ui.update_camera_frame)
         engine.gesture.start()
-        engine.gesture.enable()
-        ui.update_gesture_ui(True)
+        engine.gesture.disable()  # Standart holda O'chiq (foydalanuvchi yoqmaguncha sichqonchaga teginmaydi)
+        ui.update_gesture_ui(False)
 
         # Start Telegram Bot Bridge
         from actions.telegram_bot_bridge import TelegramBotListener

@@ -17,7 +17,7 @@ class GestureController:
         self.click_dist = click_dist
         
         self.is_running = False
-        self.is_enabled = True  # Standart holda FAOL
+        self.is_enabled = False  # Standart holda O'CHIQ (faqat so'ralganda yoqiladi)
         self.thread = None
         self.cap = None
         
@@ -44,7 +44,6 @@ class GestureController:
         if self.is_running:
             return
         self.is_running = True
-        self.is_enabled = True
         self.thread = threading.Thread(target=self._run_loop, daemon=True)
         self.thread.start()
 
@@ -101,8 +100,8 @@ class GestureController:
             return None
 
     def _run_loop(self):
-        # 2 ta qo'lni parallel kuzatish (max_hands=2)
-        self.tracker = HandTracker(max_hands=2, detection_con=0.55, track_con=0.55)
+        # 2 ta qo'lni parallel kuzatish (max_hands=2, yuqori ishonchlilik filtri)
+        self.tracker = HandTracker(max_hands=2, detection_con=0.65, track_con=0.65)
         prev_scroll_y = None
         consecutive_failures = 0
         prev_hands_dist = None
@@ -279,15 +278,17 @@ class GestureController:
                         y_mapped = np.interp(y1, (self.frame_r, h - self.frame_r), (0, self.screen_h))
 
                         dist_delta = np.hypot(x_mapped - self.prev_x, y_mapped - self.prev_y)
-                        dynamic_smooth = max(1.1, self.smooth_val if dist_delta < 35 else 1.3)
+                        if dist_delta > 4:  # Deadzone filtering to prevent unwanted jitter
+                            dynamic_smooth = max(1.1, self.smooth_val if dist_delta < 35 else 1.3)
 
-                        self.curr_x = self.prev_x + (x_mapped - self.prev_x) / dynamic_smooth
-                        self.curr_y = self.prev_y + (y_mapped - self.prev_y) / dynamic_smooth
+                            self.curr_x = self.prev_x + (x_mapped - self.prev_x) / dynamic_smooth
+                            self.curr_y = self.prev_y + (y_mapped - self.prev_y) / dynamic_smooth
 
-                        pyautogui.moveTo(self.curr_x, self.curr_y)
+                            pyautogui.moveTo(self.curr_x, self.curr_y)
+                            self.prev_x, self.prev_y = self.curr_x, self.curr_y
+
                         cv2.circle(img, (x1, y1), 12, (0, 255, 255), cv2.FILLED)
                         cv2.drawMarker(img, (x1, y1), (0, 255, 0), cv2.MARKER_CROSS, 22, 2)
-                        self.prev_x, self.prev_y = self.curr_x, self.curr_y
 
                     # 3. PINCH CLICK (Bosh + Ko'rsatkich barmoq tekkanda)
                     dist_pinch, info_pinch = self.tracker.calculate_distance(lm_list[4], lm_list[8], img=img, draw=False)
