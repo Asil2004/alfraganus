@@ -640,8 +640,20 @@ class AlfraganusEngine:
                 if not self.session or not self.is_running:
                     continue
 
-                # Screen capture
-                screen_pil = ImageGrab.grab()
+                # Safe Screen capture (with fallback)
+                try:
+                    screen_pil = ImageGrab.grab(all_screens=False)
+                except Exception:
+                    try:
+                        import pyautogui
+                        screen_pil = pyautogui.screenshot()
+                    except Exception:
+                        screen_pil = None
+
+                if screen_pil is None:
+                    await asyncio.sleep(0.5)
+                    continue
+
                 screen_pil.thumbnail((1024, 576))
                 screen_np = np.array(screen_pil)
                 screen_bgr = cv2.cvtColor(screen_np, cv2.COLOR_RGB2BGR)

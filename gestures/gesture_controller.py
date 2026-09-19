@@ -35,6 +35,7 @@ class GestureController:
         
         self.tracker = None
         self.on_frame_callback = None
+        self._cam_lock = threading.Lock()
 
     def set_frame_callback(self, cb):
         self.on_frame_callback = cb
@@ -48,31 +49,35 @@ class GestureController:
         self.thread.start()
 
     def stop(self):
-        self.is_running = False
-        self.is_enabled = False
-        if self.cap:
-            try:
-                self.cap.release()
-            except Exception:
-                pass
+        with self._cam_lock:
+            self.is_running = False
+            self.is_enabled = False
+            if self.cap is not None:
+                try:
+                    self.cap.release()
+                except Exception:
+                    pass
+                self.cap = None
 
     def enable(self):
-        self.is_enabled = True
-        return True
+        with self._cam_lock:
+            self.is_enabled = True
+            return True
 
     def disable(self):
-        self.is_enabled = False
-        self.current_action = "O'chiq"
-        if self.is_dragging:
-            pyautogui.mouseUp()
-            self.is_dragging = False
-        if self.cap:
-            try:
-                self.cap.release()
-            except Exception:
-                pass
-            self.cap = None
-        return False
+        with self._cam_lock:
+            self.is_enabled = False
+            self.current_action = "O'chiq"
+            if self.is_dragging:
+                pyautogui.mouseUp()
+                self.is_dragging = False
+            if self.cap is not None:
+                try:
+                    self.cap.release()
+                except Exception:
+                    pass
+                self.cap = None
+            return False
 
     def toggle(self):
         if self.is_enabled:
@@ -98,36 +103,42 @@ class GestureController:
     def _run_loop(self):
         # 2 ta qo'lni parallel kuzatish (max_hands=2)
         self.tracker = HandTracker(max_hands=2, detection_con=0.55, track_con=0.55)
-        self.cap = self._open_camera()
         prev_scroll_y = None
         consecutive_failures = 0
         prev_hands_dist = None
 
         while self.is_running:
             if not self.is_enabled:
-                if self.cap is not None:
-                    try:
-                        self.cap.release()
-                    except Exception:
-                        pass
-                    self.cap = None
-                time.sleep(0.1)
+                with self._cam_lock:
+                    if self.cap is not None:
+                        try:
+                            self.cap.release()
+                        except Exception:
+                            pass
+                        self.cap = None
+                time.sleep(0.08)
                 continue
 
-            if self.cap is None or not self.cap.isOpened():
-                self.cap = self._open_camera()
-                if self.cap is None or not self.cap.isOpened():
-                    time.sleep(0.5)
+            with self._cam_lock:
+                if not self.is_enabled:
                     continue
-                time.sleep(0.1)
+                if self.cap is None or not self.cap.isOpened():
+                    self.cap = self._open_camera()
+                    if self.cap is None or not self.cap.isOpened():
+                        pass
+                
+                if self.cap is not None and self.cap.isOpened():
+                    success, img = self.cap.read()
+                else:
+                    success, img = False, None
 
-            success, img = self.cap.read()
             if not success or img is None:
                 consecutive_failures += 1
                 if consecutive_failures > 8:
-                    if self.cap:
-                        self.cap.release()
-                    self.cap = self._open_camera()
+                    with self._cam_lock:
+                        if self.cap:
+                            self.cap.release()
+                        self.cap = self._open_camera()
                     consecutive_failures = 0
                 time.sleep(0.02)
                 continue

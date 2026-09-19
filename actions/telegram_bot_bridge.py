@@ -74,6 +74,17 @@ def send_bot_message(text: str, chat_id: str = None) -> str:
         return f"Telegramga yuborishda xatolik: {e}"
 
 
+def _safe_capture_screen():
+    try:
+        return ImageGrab.grab(all_screens=False)
+    except Exception:
+        try:
+            import pyautogui
+            return pyautogui.screenshot()
+        except Exception:
+            return None
+
+
 def send_bot_screenshot(caption: str = "🖥️ Kompyuter ekrani skrinshoti", chat_id: str = None) -> str:
     token = get_bot_token()
     cid = chat_id or get_admin_chat_id()
@@ -81,7 +92,9 @@ def send_bot_screenshot(caption: str = "🖥️ Kompyuter ekrani skrinshoti", ch
         return "Telegram Bot yoki Chat ID sozlanmagan."
 
     try:
-        screenshot = ImageGrab.grab()
+        screenshot = _safe_capture_screen()
+        if screenshot is None:
+            return "Ekran tasvirini olib bo'lmadi."
         img_bytes = io.BytesIO()
         screenshot.save(img_bytes, format="JPEG", quality=85)
         img_bytes.seek(0)
@@ -155,7 +168,9 @@ def send_bot_live_combo(caption: str = "🖥️📹 Kompyuter ekrani va noutbuk 
         import numpy as np
 
         # 1. Ekranni suratga olish
-        screenshot = ImageGrab.grab()
+        screenshot = _safe_capture_screen()
+        if screenshot is None:
+            return "Ekran tasvirini olib bo'lmadi."
         screen_np = np.array(screenshot)
         screen_bgr = cv2.cvtColor(screen_np, cv2.COLOR_RGB2BGR)
 
