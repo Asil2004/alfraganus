@@ -81,12 +81,28 @@ class AlfraganusUI:
 
         self.lbl_status = tk.Label(
             header_frame,
-            text="? TIZIM TAYYOR (ONLINE)",
+            text="● TIZIM TAYYOR (ONLINE)",
             font=("Segoe UI", 10, "bold"),
             fg=C_EMERALD,
             bg=C_PANEL
         )
-        self.lbl_status.pack(side="right", padx=20, pady=12)
+        self.lbl_status.pack(side="right", padx=15, pady=12)
+
+        btn_api_key_header = tk.Button(
+            header_frame,
+            text="🔑 API Key Sozlamalari",
+            font=("Segoe UI", 9, "bold"),
+            bg="#112a45",
+            fg=C_GOLD,
+            relief="flat",
+            activebackground="#1d4570",
+            activeforeground="#ffffff",
+            padx=10,
+            pady=4,
+            cursor="hand2",
+            command=self.open_api_key_dialog
+        )
+        btn_api_key_header.pack(side="right", padx=10, pady=10)
 
         # 2. MAIN CONTAINER
         main_container = tk.Frame(self.root, bg=C_BG)
@@ -234,6 +250,20 @@ class AlfraganusUI:
             command=self._reconnect_action
         )
         self.btn_recon.pack(side="left", padx=5, pady=8)
+
+        self.btn_keys = tk.Button(
+            bottom_bar,
+            text="🔑 API Kalitlari",
+            font=("Segoe UI", 9, "bold"),
+            bg="#112a45",
+            fg=C_GOLD,
+            relief="flat",
+            padx=12,
+            pady=6,
+            cursor="hand2",
+            command=self.open_api_key_dialog
+        )
+        self.btn_keys.pack(side="left", padx=5, pady=8)
 
         btn_exit = tk.Button(
             bottom_bar,
@@ -412,6 +442,256 @@ class AlfraganusUI:
         self.log("Qayta ulanish so'ralmoqda...", "SYSTEM")
         if self.on_reconnect:
             self.on_reconnect()
+
+    def open_api_key_dialog(self):
+        """API Key kiritish va almashtirish uchun maxsus zamonaviy modal oyna"""
+        import json
+        import webbrowser
+        from pathlib import Path
+
+        dialog = tk.Toplevel(self.root)
+        dialog.title("ALFRAGANUS — API Key va Sozlamalar")
+        dialog.geometry("620x530")
+        dialog.configure(bg=C_BG)
+        dialog.resizable(False, False)
+        dialog.transient(self.root)
+        dialog.grab_set()
+
+        # Oynani markazga joylashtirish
+        try:
+            x = self.root.winfo_x() + (self.root.winfo_width() // 2) - 310
+            y = self.root.winfo_y() + (self.root.winfo_height() // 2) - 265
+            dialog.geometry(f"+{max(0, x)}+{max(0, y)}")
+        except Exception:
+            pass
+
+        config_file = Path(__file__).resolve().parent / "config" / "api_keys.json"
+        curr_gemini_key = ""
+        curr_tg_token = ""
+        if config_file.exists():
+            try:
+                with open(config_file, "r", encoding="utf-8") as f:
+                    cfg = json.load(f)
+                    curr_gemini_key = cfg.get("gemini_api_key", "")
+                    curr_tg_token = cfg.get("telegram_bot_token", "")
+            except Exception:
+                pass
+
+        # Sarlavha
+        top_frame = tk.Frame(dialog, bg=C_PANEL, height=55, highlightbackground=C_BORDER, highlightthickness=1)
+        top_frame.pack(fill="x", padx=15, pady=(15, 10))
+
+        tk.Label(
+            top_frame,
+            text="🔑 API KALITLARI VA BOG'LANISH SOZLAMALARI",
+            font=("Segoe UI", 11, "bold"),
+            fg=C_CYAN,
+            bg=C_PANEL
+        ).pack(side="left", padx=15, pady=12)
+
+        # Kontent konteyneri
+        content_frame = tk.Frame(dialog, bg=C_BG)
+        content_frame.pack(fill="both", expand=True, padx=20, pady=5)
+
+        # 1. GEMINI API KEY SECTION
+        lbl_g = tk.Label(
+            content_frame,
+            text="1. Google Gemini API Key (Asosiy Sun'iy Intellekt Miyasi):",
+            font=("Segoe UI", 10, "bold"),
+            fg=C_GOLD,
+            bg=C_BG
+        )
+        lbl_g.pack(anchor="w", pady=(5, 2))
+
+        lbl_g_desc = tk.Label(
+            content_frame,
+            text="Alfraganus AI modeli ishlashi uchun Google AI Studio API kaliti zarur.",
+            font=("Segoe UI", 8),
+            fg=C_MUTED,
+            bg=C_BG
+        )
+        lbl_g_desc.pack(anchor="w", pady=(0, 6))
+
+        gemini_entry_frame = tk.Frame(content_frame, bg=C_PANEL, highlightbackground=C_BORDER, highlightthickness=1)
+        gemini_entry_frame.pack(fill="x", pady=2)
+
+        entry_gemini = tk.Entry(
+            gemini_entry_frame,
+            font=("Consolas", 10),
+            bg="#02050b",
+            fg=C_TEXT,
+            insertbackground=C_CYAN,
+            relief="flat",
+            show="•"
+        )
+        entry_gemini.pack(side="left", fill="x", expand=True, padx=8, pady=8)
+        entry_gemini.insert(0, curr_gemini_key)
+
+        show_g_var = tk.BooleanVar(value=False)
+        def toggle_gemini_show():
+            if show_g_var.get():
+                entry_gemini.config(show="")
+            else:
+                entry_gemini.config(show="•")
+
+        chk_g = tk.Checkbutton(
+            gemini_entry_frame,
+            text="Ko'rsat",
+            variable=show_g_var,
+            command=toggle_gemini_show,
+            font=("Segoe UI", 8),
+            fg=C_TEXT,
+            bg=C_PANEL,
+            selectcolor="#02050b",
+            activebackground=C_PANEL,
+            activeforeground=C_CYAN
+        )
+        chk_g.pack(side="right", padx=6)
+
+        btn_get_key = tk.Button(
+            content_frame,
+            text="🌐 aistudio.google.com dan yangi API Key olish (Ochish)",
+            font=("Segoe UI", 8, "underline"),
+            fg=C_CYAN,
+            bg=C_BG,
+            relief="flat",
+            activebackground=C_BG,
+            activeforeground=C_GOLD,
+            cursor="hand2",
+            command=lambda: webbrowser.open("https://aistudio.google.com/app/apikey")
+        )
+        btn_get_key.pack(anchor="w", pady=(3, 10))
+
+        # 2. TELEGRAM BOT TOKEN SECTION
+        lbl_tg = tk.Label(
+            content_frame,
+            text="2. Telegram Bot Token (Masofaviy Boshqaruv @al_pc_bot):",
+            font=("Segoe UI", 10, "bold"),
+            fg=C_GOLD,
+            bg=C_BG
+        )
+        lbl_tg.pack(anchor="w", pady=(5, 2))
+
+        lbl_tg_desc = tk.Label(
+            content_frame,
+            text="Telegramdan kompyuterni boshqarish va skrinshot olish uchun bot tokeni (ixtiyoriy).",
+            font=("Segoe UI", 8),
+            fg=C_MUTED,
+            bg=C_BG
+        )
+        lbl_tg_desc.pack(anchor="w", pady=(0, 6))
+
+        tg_entry_frame = tk.Frame(content_frame, bg=C_PANEL, highlightbackground=C_BORDER, highlightthickness=1)
+        tg_entry_frame.pack(fill="x", pady=2)
+
+        entry_tg = tk.Entry(
+            tg_entry_frame,
+            font=("Consolas", 10),
+            bg="#02050b",
+            fg=C_TEXT,
+            insertbackground=C_CYAN,
+            relief="flat",
+            show="•"
+        )
+        entry_tg.pack(side="left", fill="x", expand=True, padx=8, pady=8)
+        entry_tg.insert(0, curr_tg_token)
+
+        show_tg_var = tk.BooleanVar(value=False)
+        def toggle_tg_show():
+            if show_tg_var.get():
+                entry_tg.config(show="")
+            else:
+                entry_tg.config(show="•")
+
+        chk_tg = tk.Checkbutton(
+            tg_entry_frame,
+            text="Ko'rsat",
+            variable=show_tg_var,
+            command=toggle_tg_show,
+            font=("Segoe UI", 8),
+            fg=C_TEXT,
+            bg=C_PANEL,
+            selectcolor="#02050b",
+            activebackground=C_PANEL,
+            activeforeground=C_CYAN
+        )
+        chk_tg.pack(side="right", padx=6)
+
+        # Status / Xabarlar
+        lbl_result = tk.Label(
+            content_frame,
+            text="",
+            font=("Segoe UI", 9, "bold"),
+            fg=C_EMERALD,
+            bg=C_BG
+        )
+        lbl_result.pack(anchor="w", pady=(8, 4))
+
+        # 3. ACTIONS FRAME
+        btn_frame = tk.Frame(dialog, bg=C_PANEL, height=55, highlightbackground=C_BORDER, highlightthickness=1)
+        btn_frame.pack(fill="x", side="bottom", padx=15, pady=(5, 15))
+
+        def save_keys_action():
+            new_gemini = entry_gemini.get().strip()
+            new_tg = entry_tg.get().strip()
+
+            if not new_gemini:
+                lbl_result.config(text="⚠️ Iltimos, Google Gemini API kalitini kiriting!", fg=C_RED)
+                return
+
+            try:
+                config_file.parent.mkdir(parents=True, exist_ok=True)
+                new_data = {
+                    "gemini_api_key": new_gemini,
+                    "telegram_bot_token": new_tg
+                }
+                with open(config_file, "w", encoding="utf-8") as f:
+                    json.dump(new_data, f, indent=2)
+
+                lbl_result.config(text="✅ Yangi API Key muvaffaqiyatli saqlandi va tizimga ulandi!", fg=C_EMERALD)
+                self.log("Yangi API Key saqlandi va qayta ulanish amalga oshirilmoqda.", "SUCCESS")
+
+                if hasattr(self, "on_api_key_updated") and self.on_api_key_updated:
+                    self.on_api_key_updated(new_gemini, new_tg)
+                elif self.on_reconnect:
+                    self.on_reconnect()
+
+                dialog.after(1400, dialog.destroy)
+
+            except Exception as e:
+                lbl_result.config(text=f"❌ Saqlashda xatolik: {e}", fg=C_RED)
+
+        btn_save = tk.Button(
+            btn_frame,
+            text="💾 Saqlash va Ulanish",
+            font=("Segoe UI", 10, "bold"),
+            bg="#063826",
+            fg=C_EMERALD,
+            relief="flat",
+            activebackground="#0b543a",
+            activeforeground="#ffffff",
+            padx=18,
+            pady=8,
+            cursor="hand2",
+            command=save_keys_action
+        )
+        btn_save.pack(side="right", padx=15, pady=8)
+
+        btn_cancel = tk.Button(
+            btn_frame,
+            text="✕ Bekor qilish",
+            font=("Segoe UI", 9),
+            bg="#1a1c24",
+            fg=C_MUTED,
+            relief="flat",
+            activebackground="#2a2c36",
+            activeforeground=C_TEXT,
+            padx=12,
+            pady=8,
+            cursor="hand2",
+            command=dialog.destroy
+        )
+        btn_cancel.pack(side="right", padx=5, pady=8)
 
     def _start_loops(self):
         self.update_telemetry()

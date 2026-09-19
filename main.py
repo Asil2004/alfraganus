@@ -851,7 +851,20 @@ def start_app():
             else:
                 engine.gesture.disable()
 
+        def on_api_key_updated(new_gemini_key, new_tg_token):
+            engine.api_key = new_gemini_key
+            engine.reconnect_requested = True
+            if ui:
+                ui.log("Yangi API Key qabul qilindi. Live sessiya qayta ulanmoqda...", "SUCCESS")
+
+        def on_reconnect():
+            engine.reconnect_requested = True
+            if ui:
+                ui.log("Foydalanuvchi tomonidan qayta ulanish talab qilindi.", "SYSTEM")
+
         ui.on_gesture_toggle = on_gesture_toggle
+        ui.on_api_key_updated = on_api_key_updated
+        ui.on_reconnect = on_reconnect
         engine.gesture.set_frame_callback(ui.update_camera_frame)
         engine.gesture.start()
         engine.gesture.disable()  # Standart holda O'chiq (foydalanuvchi yoqmaguncha sichqonchaga teginmaydi)
