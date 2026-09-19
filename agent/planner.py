@@ -31,16 +31,16 @@ Format:
 ]
 Faqat to'g'ridan-to'g'ri JSON massiv qaytaring.
 """
-        try:
-            response = client.models.generate_content(
-                model="gemini-3.5-flash",
-                contents=prompt
-            )
-        except Exception:
-            response = client.models.generate_content(
-                model="gemini-3.5-flash-lite",
-                contents=prompt
-            )
+        for m in ["gemini-3.6-flash", "gemini-3.5-flash", "gemini-3.5-flash-lite"]:
+            try:
+                response = client.models.generate_content(
+                    model=m,
+                    contents=prompt
+                )
+                if response and response.text:
+                    break
+            except Exception:
+                continue
         raw_text = response.text.strip()
         if raw_text.startswith("```json"):
             raw_text = raw_text[7:]

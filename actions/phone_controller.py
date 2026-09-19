@@ -393,14 +393,21 @@ Ko'rsatmalar:
 - Telefon ekranidagi ilovalar, xabarlar, bildirishnomalar yoki kontentni tahlil qiling.
 - O'zbek tilida juda aniq, qisqa va lo'nda tushuntiring.
 """
-        response = client.models.generate_content(
-            model="gemini-3.5-flash",
-            contents=[
-                types.Part.from_bytes(data=image_bytes, mime_type="image/png"),
-                prompt
-            ]
-        )
-        return response.text.strip()
+        response = None
+        for m in ["gemini-3.6-flash", "gemini-3.5-flash", "gemini-3.5-flash-lite"]:
+            try:
+                response = client.models.generate_content(
+                    model=m,
+                    contents=[
+                        types.Part.from_bytes(data=image_bytes, mime_type="image/png"),
+                        prompt
+                    ]
+                )
+                if response and response.text:
+                    break
+            except Exception:
+                continue
+        return response.text.strip() if response else "Tahlil qilib bo'lmadi."
     except Exception as e:
         return f"Telefon ekranini tahlil qilishda xatolik: {e}"
 

@@ -5,7 +5,7 @@ import time
 import threading
 import requests
 from pathlib import Path
-from PIL import ImageGrab
+from PIL import Image, ImageGrab
 
 from actions.open_app import open_app, close_app, focus_app
 from actions.computer_settings import computer_settings
@@ -142,6 +142,69 @@ def send_bot_camera_photo(caption: str = "📷 Noutbuk kamerasi surati", chat_id
         return f"Kameradan surat olishda xatolik: {e}"
 
 
+def send_bot_live_combo(caption: str = "🖥️📹 Kompyuter ekrani va noutbuk kamerasi (Live Combo)", chat_id: str = None) -> str:
+    """Ekran va kamera tasvirini bir vaqtning o'zida bitta suratda (Picture-in-Picture) yuboradi"""
+    token = get_bot_token()
+    cid = chat_id or get_admin_chat_id()
+    if not token or not cid:
+        return "Telegram Bot yoki Chat ID sozlanmagan."
+
+    cap = None
+    try:
+        import cv2
+        import numpy as np
+
+        # 1. Ekranni suratga olish
+        screenshot = ImageGrab.grab()
+        screen_np = np.array(screenshot)
+        screen_bgr = cv2.cvtColor(screen_np, cv2.COLOR_RGB2BGR)
+
+        # 2. Kameradan kadr olish
+        cap = cv2.VideoCapture(0)
+        cam_frame = None
+        if cap.isOpened():
+            for _ in range(4):
+                cap.read()
+            ret, cam_frame = cap.read()
+            cap.release()
+            cap = None
+
+        # 3. Kamerani ekranga o'rnatish (Picture-in-Picture)
+        if cam_frame is not None:
+            sh, sw, _ = screen_bgr.shape
+            pip_w = int(sw * 0.28)
+            pip_h = int(pip_w * 0.75)
+            cam_resized = cv2.resize(cam_frame, (pip_w, pip_h))
+
+            x_off = sw - pip_w - 25
+            y_off = sh - pip_h - 25
+            if x_off > 0 and y_off > 0:
+                # Oltin/Neon ramka chizish
+                cv2.rectangle(screen_bgr, (x_off - 4, y_off - 4), (x_off + pip_w + 4, y_off + pip_h + 4), (0, 240, 255), 3)
+                screen_bgr[y_off:y_off+pip_h, x_off:x_off+pip_w] = cam_resized
+                cv2.putText(screen_bgr, "KAMERA (LIVE)", (x_off + 10, y_off + 25), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 163), 2)
+
+        ret, encoded_img = cv2.imencode('.jpg', screen_bgr, [int(cv2.IMWRITE_JPEG_QUALITY), 88])
+        if not ret:
+            return "Tasvirni formatlashda xatolik."
+
+        img_bytes = io.BytesIO(encoded_img.tobytes())
+        url = f"https://api.telegram.org/bot{token}/sendPhoto"
+        files = {"photo": ("live_combo.jpg", img_bytes, "image/jpeg")}
+        data = {"chat_id": cid, "caption": caption}
+        resp = requests.post(url, data=data, files=files, timeout=15)
+        if resp.status_code == 200:
+            return "Ekran va kamera kombinatsiyasi Telegramga jo'natildi."
+        return f"Xatolik: {resp.text}"
+    except Exception as e:
+        if cap is not None:
+            try:
+                cap.release()
+            except Exception:
+                pass
+        return f"Live tasvir yaratishda xatolik: {e}"
+
+
 def send_bot_file(file_path: str, caption: str = "", chat_id: str = None) -> str:
     token = get_bot_token()
     cid = chat_id or get_admin_chat_id()
@@ -237,7 +300,7 @@ class TelegramBotListener:
             download_url = f"https://api.telegram.org/file/bot{token}/{file_path}"
             audio_bytes = requests.get(download_url, timeout=20).content
 
-            # 2. Gemini 2.5 Flash bilan transkripsiya va buyruqni anglash
+            # 2. Gemini bilan transkripsiya va buyruqni anglash
             from google import genai
             from google.genai import types
 
@@ -251,17 +314,33 @@ class TelegramBotListener:
                 "Javobingizni quyidagi JSON formatda qaytaring (faqat JSON bo'lsin):\n"
                 "{\n"
                 '  "transcript": "Foydalanuvchi aytgan so\'zlar",\n'
-                '  "action_type": "camera | screenshot | status | lock | open_app | chat",\n'
+                '  "action_type": "live | camera | screenshot | status | lock | open_app | chat",\n'
                 '  "target": "ochilishi kerak bo\'lgan ilova nomi yoki bo\'sh",\n'
                 '  "reply": "Foydalanuvchiga do\'stona o\'zbekcha javob matni"\n'
                 "}"
             )
 
             audio_part = types.Part.from_bytes(data=audio_bytes, mime_type="audio/ogg")
-            ai_res = client.models.generate_content(
-                model="gemini-2.5-flash",
-                contents=[audio_part, prompt]
-            )
+            
+            # Model nomlari fallback zanjiri (eng so'nggi va faol modellar)
+            candidate_models = ["gemini-3.6-flash", "gemini-3.5-flash", "gemini-2.5-flash-native-audio-latest", "gemini-2.0-flash"]
+            ai_res = None
+            last_err = None
+
+            for model_name in candidate_models:
+                try:
+                    ai_res = client.models.generate_content(
+                        model=model_name,
+                        contents=[audio_part, prompt]
+                    )
+                    if ai_res and ai_res.text:
+                        break
+                except Exception as ex:
+                    last_err = ex
+                    continue
+
+            if not ai_res or not ai_res.text:
+                raise Exception(f"AI model javob bermadi: {last_err}")
 
             raw_txt = ai_res.text.strip()
             if raw_txt.startswith("```json"):
@@ -293,7 +372,9 @@ class TelegramBotListener:
             act_low = action_type.lower()
             trans_low = transcript.lower()
 
-            if act_low == "camera" or "kamera" in trans_low or "surat" in trans_low or "rasm" in trans_low:
+            if act_low == "live" or ("ekran" in trans_low and "kamera" in trans_low):
+                send_bot_live_combo("🖥️📹 Kompyuter ekrani va noutbuk kamerasi live tasviri:", chat_id)
+            elif act_low == "camera" or "kamera" in trans_low or "surat" in trans_low:
                 send_bot_camera_photo("📷 Noutbuk kamerasi orqali olingan surat:", chat_id)
             elif act_low == "screenshot" or "ekran" in trans_low or "skrinshot" in trans_low:
                 send_bot_screenshot("🖥️ Kompyuteringizning ayni damdagi ekrani:", chat_id)
@@ -310,27 +391,31 @@ class TelegramBotListener:
             send_bot_message(f"⚠️ Ovozli xabarni qayta ishlashda xatolik: {e}", chat_id)
 
     def _handle_command(self, chat_id: str, user_name: str, text: str):
-        low = text.lower()
+        low = text.lower().strip()
         if low in ["/start", "salom", "start", "/help", "yordam"]:
             welcome = (
                 f"Assalomu alaykum, <b>{user_name}</b>!\n\n"
                 f"🌌 <b>ALFRAGANUS AI</b> kompyuteringizga muvaffaqiyatli ulandi!\n\n"
                 f"Siz ushbu bot orqali kompyuteringizni masofadan to'liq boshqarishingiz mumkin:\n\n"
                 f"🎙️ <b>Ovozli xabar:</b> Menga to'g'ridan-to'g'ri ovozli xabar (voice) yuboring — Alfraganus uni tushunib, darhol kompyuteringizda bajaradi!\n\n"
+                f"🖥️📹 /live yoki <code>combo</code> — Ekran va kamera tasvirini birgalikda (Picture-in-Picture) olish\n"
                 f"📷 /cam yoki <code>kamera</code> — Noutbuk kamerasidan surat olish\n"
                 f"🖥️ /screen yoki <code>ekran</code> — Kompyuter ekranini live skrinshot qilish\n"
                 f"📊 /status — Tizim telemetriyasi va yuklamalar\n"
                 f"🔒 /lock — Kompyuterni qulflash\n"
                 f"🚀 /open [ilova] — Dasturni ochish (masalan: <code>/open telegram</code>)\n"
                 f"🛑 /close [ilova] — Dasturni yopish\n"
-                f"💬 Yoki oddiy o'zbekcha yozing (masalan: <i>Kamerani ko'rsat</i>, <i>Youtube ni och</i>, <i>Ovozni 50 ga qo'y</i>)"
+                f"💬 Yoki oddiy o'zbekcha yozing (masalan: <i>Kamera va ekranni ko'rsat</i>, <i>Youtube ni och</i>, <i>Ovozni 50 ga qo'y</i>)"
             )
             send_bot_message(welcome, chat_id)
+
+        elif low in ["/live", "/combo", "live", "combo", "ekran va kamera", "kamera va ekran", "live ekran", "ekran kamera"]:
+            send_bot_live_combo("🖥️📹 Kompyuter ekrani va noutbuk kamerasi (Live Combo):", chat_id)
 
         elif low in ["/cam", "/camera", "kamera", "surat", "rasm", "kamera surat", "kamera rasm", "suratga ol"]:
             send_bot_camera_photo("📷 Noutbuk kamerasi orqali olingan surat:", chat_id)
 
-        elif low in ["/screen", "/screenshot", "/live", "ekran", "skrinshot", "ekranni ko'rsat", "live ekran"]:
+        elif low in ["/screen", "/screenshot", "ekran", "skrinshot", "ekranni ko'rsat"]:
             send_bot_screenshot("🖥️ Kompyuteringizning ayni damdagi ekrani:", chat_id)
 
         elif low in ["/status", "status", "holat", "tizim holati", "telemetriya"]:
@@ -353,7 +438,9 @@ class TelegramBotListener:
 
         else:
             # Universal command via engine or direct app
-            if "kamera" in low or "surat" in low:
+            if "kamera" in low and "ekran" in low:
+                send_bot_live_combo("🖥️📹 Kompyuter ekrani va noutbuk kamerasi live tasviri:", chat_id)
+            elif "kamera" in low or "surat" in low:
                 send_bot_camera_photo("📷 Noutbuk kamerasi orqali olingan surat:", chat_id)
             elif "ekran" in low or "skrinshot" in low:
                 send_bot_screenshot("🖥️ Kompyuteringizning ayni damdagi ekrani:", chat_id)

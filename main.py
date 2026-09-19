@@ -42,7 +42,7 @@ SETTINGS_PATH = BASE_DIR / "config" / "settings.json"
 PROMPT_PATH = BASE_DIR / "core" / "prompt.txt"
 
 LIVE_MODEL = "models/gemini-2.5-flash-native-audio-latest"
-FALLBACK_MODEL = "models/gemini-3.8-live"
+FALLBACK_MODEL = "models/gemini-3.1-flash-live-preview"
 CHANNELS = 1
 SEND_SAMPLE_RATE = 16000
 RECEIVE_SAMPLE_RATE = 24000
@@ -596,6 +596,57 @@ class AlfraganusEngine:
             stream.stop()
             stream.close()
 
+    async def _stream_vision(self):
+        """Streams composite video frame (Screen + Camera PIP) to Gemini Live at ~1 FPS"""
+        import cv2
+        from PIL import ImageGrab
+
+        while self.is_running:
+            try:
+                await asyncio.sleep(1.0)
+                if not self.session or not self.is_running:
+                    continue
+
+                # Screen capture
+                screen_pil = ImageGrab.grab()
+                screen_pil.thumbnail((1024, 576))
+                screen_np = np.array(screen_pil)
+                screen_bgr = cv2.cvtColor(screen_np, cv2.COLOR_RGB2BGR)
+
+                # Camera PIP if enabled
+                if self.gesture and self.gesture.is_enabled and self.ui and self.ui.latest_cv_frame is not None:
+                    try:
+                        cam_frame = self.ui.latest_cv_frame
+                        pip_w, pip_h = 240, 160
+                        cam_resized = cv2.resize(cam_frame, (pip_w, pip_h))
+                        sh, sw, _ = screen_bgr.shape
+                        x_offset = sw - pip_w - 15
+                        y_offset = sh - pip_h - 15
+                        if x_offset > 0 and y_offset > 0:
+                            cv2.rectangle(screen_bgr, (x_offset - 2, y_offset - 2), (x_offset + pip_w + 2, y_offset + pip_h + 2), (255, 240, 0), 2)
+                            screen_bgr[y_offset:y_offset+pip_h, x_offset:x_offset+pip_w] = cam_resized
+                    except Exception:
+                        pass
+
+                ret, enc_jpeg = cv2.imencode('.jpg', screen_bgr, [int(cv2.IMWRITE_JPEG_QUALITY), 75])
+                if ret and self.session:
+                    jpeg_bytes = enc_jpeg.tobytes()
+                    try:
+                        await self.session.send_realtime_input(
+                            video=types.Blob(data=jpeg_bytes, mime_type="image/jpeg")
+                        )
+                    except Exception:
+                        try:
+                            await self.session.send_realtime_input(
+                                media={"data": jpeg_bytes, "mime_type": "image/jpeg"}
+                            )
+                        except Exception:
+                            pass
+            except asyncio.CancelledError:
+                break
+            except Exception:
+                await asyncio.sleep(2.0)
+
     async def _receive_audio(self):
         out_buf = []
         in_buf = []
@@ -725,6 +776,7 @@ class AlfraganusEngine:
 
                     tg.create_task(self._send_realtime())
                     tg.create_task(self._listen_audio())
+                    tg.create_task(self._stream_vision())
                     tg.create_task(self._receive_audio())
                     tg.create_task(self._play_audio())
 

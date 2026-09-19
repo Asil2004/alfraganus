@@ -1,4 +1,4 @@
-﻿import io
+import io
 import re
 import json
 import base64
@@ -53,22 +53,20 @@ Ko'rsatmalar:
 - O'zbek tilida juda aniq, qisqa va lo'nda javob bering.
 - Agar biror xatolik oynasi, tugma yoki dastur ochiq bo'lsa, uni aniq tushuntiring.
 """
-        try:
-            response = client.models.generate_content(
-                model="gemini-3.5-flash",
-                contents=[
-                    types.Part.from_bytes(data=image_bytes, mime_type="image/jpeg"),
-                    prompt
-                ]
-            )
-        except Exception:
-            response = client.models.generate_content(
-                model="gemini-3.5-flash-lite",
-                contents=[
-                    types.Part.from_bytes(data=image_bytes, mime_type="image/jpeg"),
-                    prompt
-                ]
-            )
+        response = None
+        for m in ["gemini-3.6-flash", "gemini-3.5-flash", "gemini-3.5-flash-lite"]:
+            try:
+                response = client.models.generate_content(
+                    model=m,
+                    contents=[
+                        types.Part.from_bytes(data=image_bytes, mime_type="image/jpeg"),
+                        prompt
+                    ]
+                )
+                if response and response.text:
+                    break
+            except Exception:
+                continue
         return response.text.strip()
     except Exception as e:
         return f"Ekranni tahlil qilishda xatolik yuz berdi: {e}"
@@ -99,22 +97,20 @@ Return ONLY a JSON object:
 If the target is not visible on screen, return:
 {{"found": false, "reason": "<why not found>"}}
 """
-        try:
-            response = client.models.generate_content(
-                model="gemini-3.5-flash",
-                contents=[
-                    types.Part.from_bytes(data=image_bytes, mime_type="image/jpeg"),
-                    prompt
-                ]
-            )
-        except Exception:
-            response = client.models.generate_content(
-                model="gemini-3.5-flash-lite",
-                contents=[
-                    types.Part.from_bytes(data=image_bytes, mime_type="image/jpeg"),
-                    prompt
-                ]
-            )
+        response = None
+        for m in ["gemini-3.6-flash", "gemini-3.5-flash", "gemini-3.5-flash-lite"]:
+            try:
+                response = client.models.generate_content(
+                    model=m,
+                    contents=[
+                        types.Part.from_bytes(data=image_bytes, mime_type="image/jpeg"),
+                        prompt
+                    ]
+                )
+                if response and response.text:
+                    break
+            except Exception:
+                continue
 
         raw = response.text.strip()
         # JSON tozalash
