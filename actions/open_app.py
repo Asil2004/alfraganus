@@ -427,16 +427,127 @@ def _launch_target(target: str) -> bool:
     return False
 
 
+def find_and_open_user_file(file_query: str) -> str | None:
+    """
+    Foydalanuvchi kompyuteridan faylni (PDF, DOCX, XLSX, PPTX, TXT, PY, MP4 va h.k.)
+    nomi yoki kengaytmasi bo'yicha qidirib, standart dasturida ochadi.
+    """
+    q = file_query.strip().strip('"').strip("'")
+    if not q:
+        return None
+    
+    # 1. To'g'ridan-to'g'ri mavjud yo'l
+    direct_p = Path(q)
+    if direct_p.exists():
+        if direct_p.is_file():
+            try:
+                os.startfile(str(direct_p))
+                return f"✅ '{direct_p.name}' fayli tizimda ochildi ({direct_p})."
+            except Exception:
+                subprocess.Popen(f'start "" "{direct_p}"', shell=True)
+                return f"✅ '{direct_p.name}' fayli ochildi."
+        elif direct_p.is_dir():
+            _launch_target(str(direct_p))
+            return f"✅ '{direct_p.name}' papkasi ochildi."
+
+    # 2. Qidiruv kalit so'zlarini tozalash
+    search_term = q.lower()
+    for prefix in ["fayl ", "fayli ", "hujjat ", "hujjati "]:
+        if search_term.startswith(prefix):
+            search_term = search_term[len(prefix):].strip()
+    for suffix in [" fayli", " faylini", " fayl", " hujjati", " hujjatini", " hujjat", " och", " ochib ber"]:
+        if search_term.endswith(suffix):
+            search_term = search_term[:-len(suffix)].strip()
+
+    if not search_term:
+        search_term = q.lower()
+
+    # 3. Asosiy foydalanuvchi kataloglari (tezkor qidiruv)
+    search_dirs = [
+        USER_HOME / "Desktop",
+        USER_HOME / "Downloads",
+        USER_HOME / "Documents",
+        USER_HOME / "Pictures",
+        USER_HOME / "Videos",
+        USER_HOME / "Music",
+        Path(r"D:\antigravity"),
+        Path(r"D:\antigravity\alfraganus"),
+        Path(r"D:\antigravity\cnc"),
+        Path(r"D:\antigravity\terminal"),
+        Path(r"D:\antigravity\set print"),
+        Path(r"D:\antigravity\telegram bot"),
+        USER_HOME,
+    ]
+
+    # Qidiruv 1: Aniq nom mosligi (Exact name match yoki stem match)
+    for s_dir in search_dirs:
+        if not s_dir.exists():
+            continue
+        try:
+            for item in s_dir.iterdir():
+                if item.is_file():
+                    if item.name.lower() == search_term or item.stem.lower() == search_term:
+                        try:
+                            os.startfile(str(item))
+                            return f"✅ '{item.name}' fayli tizimda ochildi ({item})."
+                        except Exception:
+                            subprocess.Popen(f'start "" "{item}"', shell=True)
+                            return f"✅ '{item.name}' fayli ochildi."
+        except Exception:
+            continue
+
+    # Qidiruv 2: Substring moslik (ichki papkalar bo'yicha cheklangan chuqurlikda)
+    candidate_matches = []
+    for s_dir in search_dirs:
+        if not s_dir.exists():
+            continue
+        try:
+            for root, dirs, files in os.walk(s_dir):
+                rel = os.path.relpath(root, s_dir)
+                depth = len(rel.split(os.sep)) if rel != "." else 0
+                if depth > 2:
+                    dirs.clear()
+                    continue
+                dirs[:] = [d for d in dirs if not d.startswith(".") and d not in ("node_modules", "venv", "__pycache__", "AppData")]
+                
+                for f in files:
+                    f_lower = f.lower()
+                    if search_term in f_lower:
+                        full_p = Path(root) / f
+                        if full_p.stem.lower() == search_term or f_lower == search_term:
+                            try:
+                                os.startfile(str(full_p))
+                                return f"✅ '{full_p.name}' fayli tizimda ochildi ({full_p})."
+                            except Exception:
+                                subprocess.Popen(f'start "" "{full_p}"', shell=True)
+                                return f"✅ '{full_p.name}' fayli ochildi."
+                        candidate_matches.append(full_p)
+        except Exception:
+            continue
+
+    if candidate_matches:
+        best = min(candidate_matches, key=lambda p: len(p.name))
+        try:
+            os.startfile(str(best))
+            return f"✅ '{best.name}' fayli topildi va ochildi ({best})."
+        except Exception:
+            subprocess.Popen(f'start "" "{best}"', shell=True)
+            return f"✅ '{best.name}' fayli ochildi."
+
+    return None
+
+
 def open_app(app_name: str) -> str:
     """
-    Universal Ko'p Bosqichli Ilova & Papka Ishga Tushiruvchi:
+    Universal Ko'p Bosqichli Ilova, Fayl & Papka Ishga Tushiruvchi:
     1. Taskbarda minimayz bo'lgan oynani tekshirish va oldinga chiqarish (yangidan ochmaslik).
-    2. Papkalar va disklarni (D:, C:, Downloads, Desktop, Alfraganus) ochish.
-    3. Maxsus Aliaslar (Official Telegram Desktop, Yandex, Chrome, Instagram).
-    4. Windows Get-StartApps (Barcha Win32 va Microsoft Store/UWP ilovalari).
-    5. Ish stoli va Start Menyu yorliqlari.
-    6. Veb-ilova fallback (Instagram, Yandex, YouTube uchun brauzerda ochish).
-    7. Noaniq qidiruv va Vizual Screen Grounding.
+    2. Fayllarni qidirish va ochish (PDF, DOCX, XLSX, PPTX, TXT, PY, MP4 va b.).
+    3. Papkalar va disklarni (D:, C:, Downloads, Desktop, Alfraganus) ochish.
+    4. Maxsus Aliaslar (Official Telegram Desktop, Yandex, Chrome, Instagram).
+    5. Windows Get-StartApps (Barcha Win32 va Microsoft Store/UWP ilovalari).
+    6. Ish stoli va Start Menyu yorliqlari.
+    7. Veb-ilova fallback (Instagram, Yandex, YouTube uchun brauzerda ochish).
+    8. Noaniq qidiruv va Vizual Screen Grounding.
     """
     raw_query = app_name.strip()
     cleaned = _clean_app_query(raw_query)
@@ -445,7 +556,14 @@ def open_app(app_name: str) -> str:
     if restore_and_focus_window(cleaned):
         return f"✅ '{app_name}' oynasi taskbardan tiklandi va oldinga chiqarildi."
 
-    # 2. MAXSUS ALIASLAR VA RASMIY TELEGRAM DESKTOP (Ilovalar ustuvor)
+    # 2. FAYLLARNI TEKSHIRISH (Agar so'rov fayl bo'lsa yoki kengaytmaga ega bo'lsa)
+    is_explicit_file = any(w in raw_query.lower() for w in ["fayl", "fayli", "faylini", "hujjat", "file", ".pdf", ".docx", ".xlsx", ".pptx", ".txt", ".py", ".mp4", ".png", ".jpg", ".zip"])
+    if is_explicit_file:
+        file_res = find_and_open_user_file(cleaned) or find_and_open_user_file(raw_query)
+        if file_res:
+            return file_res
+
+    # 3. MAXSUS ALIASLAR VA RASMIY TELEGRAM DESKTOP (Ilovalar ustuvor)
     target_alias = KNOWN_ALIASES.get(cleaned) or KNOWN_ALIASES.get(raw_query.lower())
     if target_alias:
         # Agar Telegram bo'lsa, rasmiy Telegram Desktop .exe mavjudligini tekshirish
@@ -470,7 +588,7 @@ def open_app(app_name: str) -> str:
         if _launch_target(target_alias):
             return f"✅ '{app_name}' muvaffaqiyatli ishga tushirildi."
 
-    # 3. PAPKA VA DISKLARNI TEKSHIRISH (Folder & Drive Navigator)
+    # 4. PAPKA VA DISKLARNI TEKSHIRISH (Folder & Drive Navigator)
     if cleaned in STANDARD_FOLDERS:
         folder_path = STANDARD_FOLDERS[cleaned]
         if Path(folder_path).exists():
@@ -483,7 +601,7 @@ def open_app(app_name: str) -> str:
         return f"✅ '{cleaned}' papkasi ochildi."
 
     # Maxsus antigravity ichidagi papkalarni qidirish (agar "papka" aytilgan bo'lsa yoki boshqa ilova topilmasa)
-    is_folder_query = any(w in raw_query.lower() for w in ["papka", "papkasi", "fayl", "folder", "disk"])
+    is_folder_query = any(w in raw_query.lower() for w in ["papka", "papkasi", "folder", "disk"])
     if is_folder_query:
         ag_folder = Path(r"D:\antigravity")
         if ag_folder.exists():
@@ -566,8 +684,13 @@ def open_app(app_name: str) -> str:
     except Exception:
         pass
 
-    # 9. Topilmagan holatda aniq va rostgo'y xabar qaytarish (Yolg'on tasdiqlamaslik uchun)
-    return f"⚠️ '{app_name}' nomli dastur yoki papka kompyuterdan topilmadi."
+    # 9. FAYLLAR VA HUJJATLAR (Agar foydalanuvchi biror fayl nomini aytgan bo'lsa)
+    file_fallback = find_and_open_user_file(cleaned) or find_and_open_user_file(raw_query)
+    if file_fallback:
+        return file_fallback
+
+    # 10. Topilmagan holatda aniq va rostgo'y xabar qaytarish (Yolg'on tasdiqlamaslik uchun)
+    return f"⚠️ '{app_name}' nomli dastur, fayl yoki papka kompyuterdan topilmadi."
 
 
 def focus_app(app_name: str) -> str:

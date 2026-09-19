@@ -60,6 +60,19 @@ def file_controller(action: str, path: str, content: str = None, destination: st
                     break
             return "\n".join(matches) if matches else "Fayl topilmadi."
 
+        elif act in ("open_file", "open", "launch_file"):
+            from actions.open_app import find_and_open_user_file
+            res = find_and_open_user_file(path)
+            if res:
+                return res
+            if target_path.exists():
+                try:
+                    os.startfile(str(target_path))
+                    return f"✅ '{target_path.name}' fayli tizimda ochildi ({target_path})."
+                except Exception as e:
+                    return f"Faylni ochishda xatolik: {e}"
+            return f"'{path}' fayli topilmadi."
+
         else:
             return f"Noma'lum fayl amali: {act}"
 

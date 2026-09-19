@@ -76,11 +76,11 @@ def load_system_prompt() -> str:
 TOOL_DECLARATIONS = [
     {
         "name": "open_app",
-        "description": "Opens or launches any application/program on Windows (Chrome, Telegram, Code, Notepad, Calc, etc.).",
+        "description": "Opens or launches any application/program, file (PDF, DOCX, XLSX, PPTX, TXT, PY, MP4, etc.), folder, or disk on Windows.",
         "parameters": {
             "type": "OBJECT",
             "properties": {
-                "app_name": {"type": "STRING", "description": "Application name"}
+                "app_name": {"type": "STRING", "description": "Application name, file name (e.g. 'rezyume.pdf', 'hisobot.docx'), or folder/drive path to open"}
             },
             "required": ["app_name"]
         }
@@ -327,12 +327,12 @@ TOOL_DECLARATIONS = [
     },
     {
         "name": "file_controller",
-        "description": "File and directory operations: list_files, read_file, write_file, append_file, delete_file, make_dir, search_files.",
+        "description": "File and directory operations: open_file (opens file with default Windows app), list_files, read_file, write_file, append_file, delete_file, make_dir, search_files.",
         "parameters": {
             "type": "OBJECT",
             "properties": {
-                "action": {"type": "STRING", "description": "Action name"},
-                "path": {"type": "STRING", "description": "File or directory path"},
+                "action": {"type": "STRING", "description": "Action name: open_file, list_files, read_file, write_file, append_file, delete_file, make_dir, search_files"},
+                "path": {"type": "STRING", "description": "File or directory path or file name to open/operate on"},
                 "content": {"type": "STRING", "description": "Content for writing"},
                 "query": {"type": "STRING", "description": "Search pattern"}
             },
