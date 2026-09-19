@@ -36,10 +36,31 @@ from actions.youtube_video import youtube_video
 from actions.weather_report import weather_action
 from agent.executor import execute_plan
 
-BASE_DIR = Path(__file__).resolve().parent
-CONFIG_PATH = BASE_DIR / "config" / "api_keys.json"
-SETTINGS_PATH = BASE_DIR / "config" / "settings.json"
+def _get_base_dir() -> Path:
+    if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):
+        return Path(sys._MEIPASS)
+    return Path(__file__).resolve().parent
+
+def _get_app_dir() -> Path:
+    if getattr(sys, "frozen", False):
+        return Path(sys.executable).resolve().parent
+    return Path(__file__).resolve().parent
+
+BASE_DIR = _get_base_dir()
+APP_DIR = _get_app_dir()
+
+# Config path: Check executable directory first, then internal bundled directory
+CONFIG_PATH = APP_DIR / "config" / "api_keys.json"
+if not CONFIG_PATH.exists():
+    CONFIG_PATH = BASE_DIR / "config" / "api_keys.json"
+
+SETTINGS_PATH = APP_DIR / "config" / "settings.json"
+if not SETTINGS_PATH.exists():
+    SETTINGS_PATH = BASE_DIR / "config" / "settings.json"
+
 PROMPT_PATH = BASE_DIR / "core" / "prompt.txt"
+if not PROMPT_PATH.exists():
+    PROMPT_PATH = APP_DIR / "core" / "prompt.txt"
 
 # Google AI Studio / Gemini Live Models Priority Pool (Avtomatik eng yaxshisiga almashadi)
 LIVE_MODELS_POOL = [
